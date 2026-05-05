@@ -21,7 +21,7 @@
 > Where do forcibly displaced people come from, and where do they go?
 
 [![View Slides](https://img.shields.io/badge/View%20Slides-Reveal.js-blue?style=flat-square)](./ps4-forced-displacement/)
-[![View README](https://img.shields.io/badge/README-grey?style=flat-square)](https://vincentsoemin.github.io/analyst-portfolio/ps2-police-shootings/readme)
+[![View README](https://img.shields.io/badge/README-grey?style=flat-square)](https://vincentsoemin.github.io/analyst-portfolio/ps4-forced-displacement/readme)
 
 **Tools:** R · ggplot2 · tidyverse · Quarto Reveal.js
 
