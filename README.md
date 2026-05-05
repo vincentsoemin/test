@@ -10,7 +10,7 @@
 > Are Black, white, and Hispanic Americans killed by police at the same rate —
 > and has that changed over time?
 
-[![View Report](https://img.shields.io/badge/View%20Report-HTML-blue?style=flat-square)](https://you.github.io/analyst-portfolio/ps2-police-shootings/)
+[![View Report](https://img.shields.io/badge/View%20Report-HTML-blue?style=flat-square)](https://vincentsoemin.github.io/analyst-portfolio/ps2-police-shootings/)
 [![View README](https://img.shields.io/badge/README-grey?style=flat-square)](./ps2-police-shootings/)
 
 **Tools:** R · ggplot2 · tidyverse · Quarto HTML
