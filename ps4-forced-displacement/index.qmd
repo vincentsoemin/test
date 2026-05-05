@@ -1,0 +1,292 @@
+---
+title: "A World in Motion"
+subtitle: "Global Forced Displacement Flows, 2000–2025"
+author: "Soe Min Thein (Vincent)"
+date: "May, 2026"
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    embed-resources: true
+    smaller: true
+    scrollable: true
+    footer: "[← Portfolio Home](https://vincentsoemin.github.io/analyst-portfolio/)"
+  
+knitr:
+  opts_chunk:
+    echo: false
+    eval: true
+    prompt: false
+    tidy: false
+    message: false
+    warning: false
+    fig-align: 'center'
+---
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(kableExtra)
+```
+
+```{r}
+# Read the data from the Excel file
+data <- read_excel("UNHCR_Flow_Data.xlsx", sheet = "DATA")
+
+# Data cleaning and preparation
+# Filter the data for REF + ASY combined, and years 2000-2025
+filtered_data <- data |> 
+  filter(PT %in% c("REF", "ASY"), Year >= 2000, Year <= 2025)
+
+# Custom theme 
+mytheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(size = 15, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 8, hjust = 0),
+    axis.text = element_text(size = 9),
+    axis.title.x = element_text(size = 9),
+    axis.title.y = element_text(size = 9),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(color = "grey40", linewidth = 0.3)
+  )
+```
+
+```{r}
+# Helper: get top-N country names for filtering ---------------------------
+# Returns a character vector of country names, used to filter filtered_data
+# Works for both origin countries and asylum countries
+get_top_countries <- function(data, group_var, n = 10) {
+  data |>
+    group_by(across(all_of(group_var))) |>
+    summarize(Total = sum(Count, na.rm = TRUE), .groups = "drop") |>
+    arrange(desc(Total)) |>
+    slice_head(n = n) |>
+    pull(group_var)
+}
+```
+
+## Overview
+
+**Research Question**
+
+*Where do forcibly displaced people come from, and where do they go?*
+
+**Findings**
+
+- Global displacement flows have grown dramatically since 2000 – and have never returned to pre-crisis baselines
+- A small number of countries generate the vast majority of all outflows: Syria and Ukraine alone account for nearly half the cumulative total
+- Displaced people overwhelmingly seek refuge in **neighboring countries** – proximity, not policy, drives where people go
+- High-income countries like the US and Germany rank in the top 10 as *asylum-processing* destinations, not necessarily resettlement ones
+- The biggest displacement corridors reflect **geography**, not international burden-sharing agreements
+
+
+## Data
+
+**Source:** [UNHCR Forced Displacement Flow Dataset](https://www.unhcr.org/refugee-statistics/insights/explainers/forcibly-displaced-flow-data.html)
+
+**Key information recorded for each flow:**
+- Country people fled *from*
+- Country people fled *to*  
+- Number of people in that movement
+- Year the movement was recorded
+- Whether classified as a refugee or asylum-seeker
+
+
+**Note**
+
+- Coverage – 2000–2025 (full dataset spans 1962–2025)
+- Observations – 86,275 rows (after filtering for REF + ASY, 2000–2025)
+- Population types – Refugees (REF) and Asylum-seekers (ASY): the two largest and most consistently reported UNHCR categories
+
+*Pre-2000 data excluded due to sparse and inconsistent country coverage; other population types (IDPs, stateless persons) excluded to maintain comparability across years*
+
+## A World in Motion
+
+```{r}
+#| fig-width: 9
+#| fig-height: 4
+#| out-width: "100%"
+
+# Visual 1 ----------------------------------------------------------------
+# Group by Year and summarize total Count
+yearly_trends <- filtered_data |> 
+  group_by(Year) |> 
+  summarize(Total_Count = sum(Count, na.rm = TRUE))
+
+# Add crisis labels data
+crisis_labels <- data.frame(
+  Year = c(2013, 2017, 2022),
+  Label = c("Syria crisis", "Myanmar\n(Rohingya crisis)", "Ukraine war"),
+  y = c(5.0, 5.5, 7.5)
+)
+
+ggplot(yearly_trends, aes(x = Year, y = Total_Count / 1000000)) +
+  # shaded area under the line
+  geom_area(fill = "#1696D2", alpha = 0.15) +
+  geom_line(color = "#1696D2", linewidth = 1) +
+  geom_point(color = "#1696D2", size = 2) +
+  # crisis annotations
+  geom_vline(xintercept = c(2013, 2017, 2022), 
+             linetype = "dashed", color = "gray60", linewidth = 0.5) +
+  geom_text(data = crisis_labels,
+            aes(x = Year, y = y, label = Label),
+            hjust = -0.1, size = 2.8, color = "gray40") +
+  scale_x_continuous(
+    limits = c(2000, 2025),
+    breaks = seq(2000, 2025, by = 5),
+    expand = expansion(mult = c(0, 0.05))
+    ) +
+  scale_y_continuous(
+    limits = c(0, 9), 
+    breaks = seq(0, 8, by = 2),
+    expand = expansion(mult = c(0, 0.01))
+    ) +
+  labs(title = "Global Displacement Has Nearly Tripled Since 2000",
+       subtitle = "Total refugees and asylum-seekers recorded annually, 2000–2025",
+       caption = "Source: UNHCR Forced displacement flow dataset",
+       x = "Year",
+       y = "People (Millions)") +
+  mytheme
+```
+Displacement is not random, it spikes sharply around identifiable crises and has never returned to pre-crisis baselines. 
+
+## Where Are People Fleeing From and Going To?
+
+```{r}
+#| fig-width: 11
+#| fig-height: 4
+#| out-width: "100%"
+
+# Visual 2 ----------------------------------------------------------------
+# Step 1: identify top 10 unique origin countries by total combined count
+top10_origins <- get_top_countries(filtered_data, "OriginName")
+
+# Step 2: filter filtered_data to those 10 countries, then group by PT
+top_origin_countries <- filtered_data |> 
+  filter(OriginName %in% top10_origins) |>
+  group_by(OriginName, PT) |> 
+  summarize(Total_Count = sum(Count, na.rm = TRUE), .groups = "drop") |>
+  group_by(OriginName) |>
+  mutate(Country_Total = sum(Total_Count)) |>  # combined REF + ASY per country
+  ungroup()
+
+# Plot
+p2 <- ggplot(top_origin_countries, 
+       aes(x = Total_Count / 1000000,
+           y = reorder(OriginName, Country_Total),
+           fill = PT)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("REF" = "#1A3A5C", "ASY" = "#73BFE2"),
+                    labels = c("REF" = "Refugee", "ASY" = "Asylum-seeker")) +
+  scale_x_continuous(
+    limits = c(0, 10), 
+    breaks = seq(0, 10, by = 2),
+    expand = expansion(mult = c(0, 0.01))
+    ) +
+  labs(subtitle = "Top 10 origin countries by cumulative outflows, 2000–2025",
+       caption = "Source: UNHCR Forced displacement flow dataset",
+       x = "People (Millions)", y = NULL,
+       fill = NULL) +
+  mytheme
+
+# Visual 3 ----------------------------------------------------------------
+# Step 1: identify top 10 unique asylum countries by total combined count
+top10_asylum  <- get_top_countries(filtered_data, "AsylumName")
+
+# Step 2: filter filtered_data to those 10 countries, then group by PT
+top_asylum_countries <- filtered_data |> 
+  filter(AsylumName %in% top10_asylum) |>
+  group_by(AsylumName, PT) |> 
+  summarize(Total_Count = sum(Count, na.rm = TRUE), .groups = "drop") |>
+  group_by(AsylumName) |>
+  mutate(Country_Total = sum(Total_Count)) |>  # combined REF + ASY per country
+  ungroup()
+
+# Plot
+p3 <- ggplot(top_asylum_countries, 
+       aes(x = Total_Count / 1000000, 
+           y = reorder(AsylumName, Country_Total), 
+           fill = PT)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("REF" = "#1A3A5C", "ASY" = "#73BFE2"),
+                    labels = c("REF" = "Refugee", "ASY" = "Asylum-seeker")) +
+  scale_x_continuous(
+    limits = c(0, 6), 
+    breaks = seq(0, 6, by = 2),
+    expand = expansion(mult = c(0, 0.01))
+  ) +
+  labs(subtitle = "Top 10 asylum countries by cumulative inflows, 2000–2025",
+       caption = "Source: UNHCR Forced displacement flow dataset",
+       x = "People (Millions)", y = NULL,
+       fill = NULL) +
+  mytheme
+
+p2 + p3 + plot_layout(guides = "collect") +
+  plot_annotation(
+    title = "A Few Countries Generate Most Displacement – Neighbors Absorb Most of It",
+    theme = theme(
+      plot.title = element_text(size = 13, face = "bold")
+    )
+  )
+```
+
+Displaced people overwhelmingly seek refuge in **neighboring countries** – though wealthy nations absorb significant asylum applications.
+
+Syria and Ukraine dominate outflows since 2000. 
+On the receiving end, Türkiye and Uganda reflect geographic proximity, 
+while the US and Germany reflect high-volume asylum processing systems.
+
+## Displacement Follows Borders
+:::: {.columns}
+
+::: {.column width = "20%"}
+
+**Key pattern**
+
+- People flee to the **nearest safe country**
+- Every top corridor is a shared border
+- No top-10 pair crosses an ocean
+
+:::
+  
+::: {.column width = "80%"}
+
+```{r}
+top_origin_asylum_pairs <- filtered_data |> 
+  group_by(OriginName, AsylumName) |> 
+  summarize(Total_Count = sum(Count, na.rm = TRUE), .groups = "drop") |> 
+  arrange(desc(Total_Count)) |> 
+  slice_head(n = 10) |>
+  mutate(Rank = row_number(),
+         Total_Count = scales::comma(Total_Count)) |>
+  select(Rank, everything())
+
+kable(top_origin_asylum_pairs,
+      col.names = c("Rank", "Origin Country", "Asylum Country", "Total Displaced"),
+      align = c("c", "l", "l", "r"),
+      caption = "Top 10 Origin–Asylum Corridors, Cumulative 2000–2025") |> 
+  kable_styling(font_size = 20, full_width = TRUE)
+```
+:::
+
+::::
+
+
+## Conclusion
+
+**What did we find?**
+
+- Global forced displacement flows have grown sharply since 2000, with major spikes around the **Syria crisis (2013–2016)**, the **Rohingya exodus from Myanmar (2017)**, and the **Ukraine war (2022)**
+- The Myanmar crisis – which drove over 700,000 Rohingya into Bangladesh in a single year – illustrates how quickly a bilateral corridor can dominate global flows
+- Syria and Ukraine generate the largest cumulative outflows, together accounting for nearly half of all displacement since 2000
+- The countries absorbing the most displaced people are **neighboring low- and middle-income countries**; the US and Germany are exceptions driven by high asylum application volumes
+- Top displacement corridors are defined by **geography and proximity**, not international burden-sharing
+
+**What does it mean?**
+
+Global displacement is a structural, ongoing challenge – not a series of isolated emergencies. The mismatch between where displacement originates and where international attention (and funding) focuses has real consequences for humanitarian resource allocation. The data suggests the burden falls heaviest on countries least equipped to carry it.
+
